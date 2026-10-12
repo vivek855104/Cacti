@@ -11,7 +11,7 @@
   --ink:#2a251c;--mute:#7b6f5b;--line:rgba(120,98,52,.18);--gold:#b8913f;--gold2:#8f6d24;--gold-soft:rgba(201,162,74,.55);
   --onaccent:#fffdf6;--hover:rgba(255,252,244,.55);--sel:rgba(255,252,246,.78);
   --g-bg:rgba(250,247,240,.84);--g-bd:rgba(255,255,255,.6);
-  --g-sh:0 14px 44px rgba(52,38,14,.16),0 1px 2px rgba(52,38,14,.1);--blur:16px;--g-solid:rgba(250,247,240,.95);
+  --g-sh:0 14px 44px rgba(52,38,14,.16),0 1px 2px rgba(52,38,14,.1);--blur:20px;
   --f-disp:"Fraunces",Georgia,serif;--f-ui:"Inter",system-ui,-apple-system,sans-serif;
   --ease:cubic-bezier(.2,.8,.2,1);--t:.38s;
   --pw:372px;--pr:calc(var(--pw) + 36px);--ph:46vh;
@@ -20,7 +20,7 @@
 /* the interface follows the scene: when the slider reaches night the glass turns smoky and warm */
 body.night{--ink:#f2e9d7;--mute:#bba98a;--line:rgba(232,200,120,.16);--gold:#e0bd6c;--gold2:#a8842f;--onaccent:#1a150c;
   --hover:rgba(255,236,190,.07);--sel:rgba(255,236,190,.13);
-  --g-solid:rgba(26,22,15,.95);--g-bg:rgba(26,22,15,.8);--g-bd:rgba(232,200,120,.22);--g-sh:0 14px 44px rgba(0,0,0,.5),0 1px 2px rgba(0,0,0,.4)}
+  --g-bg:rgba(26,22,15,.8);--g-bd:rgba(232,200,120,.22);--g-sh:0 14px 44px rgba(0,0,0,.5),0 1px 2px rgba(0,0,0,.4)}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
   :root{--g-bg:rgba(250,247,240,.97)}body.night{--g-bg:rgba(26,22,15,.96)}}
 *{box-sizing:border-box}
@@ -32,7 +32,6 @@ button{font:inherit;color:inherit}
   -webkit-backdrop-filter:blur(var(--blur)) saturate(1.15);backdrop-filter:blur(var(--blur)) saturate(1.15);
   transition:background .6s,border-color .6s,color .6s}
 :focus-visible{outline:2px solid var(--gold);outline-offset:3px}
-body.lite .glass{-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--g-solid)}
 
 /* ── stage: the 3D scene is the whole screen ── */
 #stage{position:fixed;inset:0}
@@ -43,8 +42,9 @@ body.lite .glass{-webkit-backdrop-filter:none;backdrop-filter:none;background:va
 #topbar>*,#views>*{pointer-events:auto}
 
 /* ── wayfinding labels ── */
-.lbl{position:absolute;left:0;top:0;--x:0px;--y:0px;translate:var(--x) var(--y);will-change:translate;transform:translate(-50%,calc(-100% - 12px));pointer-events:auto;border:1px solid rgba(255,255,255,.55);
-  border-radius:9px;padding:5px 13px 6px;background:rgba(251,247,238,.88);color:#2b2418;text-align:center;
+.lbl{position:absolute;transform:translate(-50%,calc(-100% - 12px));pointer-events:auto;border:1px solid rgba(255,255,255,.55);
+  border-radius:9px;padding:5px 13px 6px;background:rgba(251,247,238,.8);color:#2b2418;text-align:center;
+  -webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px);
   box-shadow:0 1px 2px rgba(70,50,16,.14),0 6px 18px rgba(70,50,16,.12);cursor:pointer;white-space:nowrap;
   transition:transform .25s var(--ease),box-shadow .25s,background .5s,color .5s,border-color .25s,opacity .9s}
 .lbl:before{content:"";position:absolute;left:14px;right:14px;top:-1px;height:1px;background:linear-gradient(90deg,transparent,var(--gold-soft),transparent)}
@@ -482,11 +482,8 @@ let renderer;
 try{renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});}
 catch(e){document.getElementById('oops').style.display='flex';throw e;}
 const LOW=matchMedia('(max-width:860px)').matches||(navigator.hardwareConcurrency||4)<=4;
-renderer.setPixelRatio(Math.min(devicePixelRatio,LOW?1.25:1.5));   // the quality controller adjusts this at runtime
-renderer.shadowMap.enabled=true;renderer.shadowMap.type=LOW?THREE.PCFShadowMap:THREE.PCFSoftShadowMap;
-/* the scenes are static: shadow maps are redrawn only when the sun moves or the scene changes, not every frame */
-renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;
-renderer.info.autoReset=false;
+renderer.setPixelRatio(Math.min(devicePixelRatio,LOW?1.5:2));
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.toneMapping=THREE.AgXToneMapping;renderer.toneMappingExposure=1.42;
 stage.insertBefore(renderer.domElement,stage.firstChild);
 MAXA=Math.min(8,renderer.capabilities.getMaxAnisotropy());
@@ -1378,10 +1375,13 @@ function buildResort(){
   const night=(x,y,z,col,pow,dist)=>{
     const p=new THREE.PointLight(col,0,dist,2);
     p.userData.base=pow;p.position.set(x,y,z); p.visible=false; S.add(p); NIGHT_LIGHTS.push(p); return p;};
-  /* a handful of wide lights stand in for every lamp: lamp heads and bollards still glow, the pools of light come from these */
-  const NL=[[0,-.5,2,0x4fe0ff,70,30],[0,4,-26,0xffd49a,44,32],[0,3,38,0xffc477,34,28],[0,3.4,96,0xffb066,45,40],
-            [-31,3,6,0xffc477,30,26],[31,3,6,0xffc477,30,26],[0,2.7,-17,0xffc477,20,20],[0,2.7,19,0xffc477,20,20]];
-  NL.slice(0,LOW?4:8).forEach(q=>night(...q));
+  lampZ.forEach(z=>{night(-5.4,2.7,z,0xffc477,9,16); night(5.4,2.7,z,0xffc477,9,16);});
+  night(-9,-.5,2,0x4fe0ff,26,20); night(9,-.5,2,0x4fe0ff,26,20); night(0,-.5,2,0x4fe0ff,22,18);
+  night(0,4,-26,0xffd49a,40,30);
+  night(0,1.6,FZ,0xffd49a,14,12);
+  night(-31,3,6,0xffc477,30,26); night(31,3,6,0xffc477,30,26);
+  night(0,3,38,0xffc477,26,24);
+  night(0,3.4,96,0xffb066,45,40);
 
   // labels
   BUILDINGS.forEach(b=>{
@@ -1600,12 +1600,7 @@ function buildRoom(type){
   bx(.98,1.06,.02,-1.80,1.38,-2.235,M.brassDark,G,.004,false);
   if(!LOW){  // a real mirror: the vanity wall reflects the room
     const mr=new Reflector(new THREE.PlaneGeometry(.9,.98),{clipBias:.003,textureWidth:512,textureHeight:512,color:0xe6e0d2});
-    mr.position.set(-1.80,1.38,-2.196);G.add(mr);
-    /* the room is static, so the reflection only needs redrawing when the camera or the lighting changes */
-    const mrDraw=mr.onBeforeRender;let mrKey='';
-    mr.onBeforeRender=function(rd,sc,cam,...rest){
-      const e=cam.matrixWorld.elements,k=e[12].toFixed(3)+e[13].toFixed(3)+e[14].toFixed(3)+e[0].toFixed(3)+e[2].toFixed(3)+e[9].toFixed(3)+todK.toFixed(3);
-      if(k===mrKey) return; mrKey=k; mrDraw.call(this,rd,sc,cam,...rest);};}
+    mr.position.set(-1.80,1.38,-2.196);G.add(mr);}
   bx(.3,.075,.22,-1.26,.70,-1.80,M.linen,G,.02);
   bx(.3,.075,.22,-1.26,.78,-1.80,M.linen,G,.02);
   bx(.92,.045,.92,-1.82,.022,-3.02,M.stone,G,.006);
@@ -1744,11 +1739,10 @@ function buildRoom(type){
   const skyFill=new THREE.RectAreaLight(0xcfe4f5,1.8,RW-.3,RH-.5);
   skyFill.position.set(0,1.5,Z1-.12);skyFill.lookAt(0,1.2,-1);S.add(skyFill);
   const bounce=new THREE.RectAreaLight(0xffd9a8,.7,3.4,2.2);
-  bounce.position.set(0,.05,.8);bounce.lookAt(0,2.6,.4);if(!LOW)S.add(bounce);
+  bounce.position.set(0,.05,.8);bounce.lookAt(0,2.6,.4);S.add(bounce);
   const pts=[];
   [[-1.3,-.4],[-1.3,1.85],[1.25,.6],[.1,2.85],[-1.4,-2.4]].forEach((q,i)=>{
     cy(.08,.022,q[0],RH-.012,q[1],M.bulb,G,20);
-    if(LOW&&(i===2||i===4)) return;   // phones: three ceiling lights are enough
     const p=new THREE.PointLight(0xffd0a0,i===4?.8:1.1,7,2);p.userData.base=p.intensity;
     p.position.set(q[0],RH-.1,q[1]);S.add(p);pts.push(p);});
   [-.5,1.9].forEach(z=>{const p=new THREE.PointLight(0xffc38a,1.1,4.2,2);p.userData.base=p.intensity;
@@ -1783,15 +1777,13 @@ const FilmShader={
       c.rgb*=mix(1.0,1.0-dot(d,d)*1.0,vig);
       c.rgb+=(h(vUv*vec2(1024.0,768.0)+time)-0.5)*amount;
       gl_FragColor=c;}`};
-let composer=null,renderPass=null,filmPass=null,bloomPass=null;
+let composer=null,renderPass=null,filmPass=null;
 function buildComposer(scene){
   if(LOW) return;
   composer=new EffectComposer(renderer);
   renderPass=new RenderPass(scene,camera);
   composer.addPass(renderPass);
-  bloomPass=new UnrealBloomPass(new THREE.Vector2(1,1),.14,.6,1.0);
-  const bsz=bloomPass.setSize.bind(bloomPass);bloomPass.setSize=(w,h)=>bsz(w>>1,h>>1);   // bloom is soft, half resolution is plenty
-  composer.addPass(bloomPass);
+  composer.addPass(new UnrealBloomPass(new THREE.Vector2(1,1),.14,.6,1.0));
   composer.addPass(new OutputPass());
   filmPass=new ShaderPass(FilmShader);
   composer.addPass(filmPass);
@@ -1837,8 +1829,6 @@ function applyLight(k){
   mixCol(M.water.color,'water',a,b,f);M.foam.opacity=n('foam');
   if(shoreSea)shoreSea.color.setScalar(1-.7*n('glow'));
   resortExposure=n('expo');roomExposure=n('rExpo');
-  renderer.shadowMap.needsUpdate=true;
-  if(bloomPass)bloomPass.enabled=n('glow')>.2&&!Q.noBloom;
   if(room&&room.userData.apply)room.userData.apply(a,b,f);
   document.body.classList.toggle('night',todK>.65);
   const lab=document.getElementById('tod-label'),mode_=todK<.18?'Daylight':todK<.62?'Golden hour':'Night';
@@ -1873,18 +1863,10 @@ function limits(m){
   if(m==='room'){c.minDistance=c.maxDistance=.012;c.enableZoom=false;c.rotateSpeed=-.32;
     c.minPolarAngle=.38;c.maxPolarAngle=2.5;}
 }
-/* Camera moves. 'orbit' flights travel in spherical coordinates around the target (a curved path at a steady zoom rate,
-   never cutting through the scene); 'look' moves turn the view with a quaternion slerp so the turn speed stays even. */
-const _sp=new THREE.Spherical(), _qa=new THREE.Quaternion(), _qb=new THREE.Quaternion(), _qm=new THREE.Quaternion(),
-      _mx=new THREE.Matrix4(), _fw=new THREE.Vector3(), _up3=new THREE.Vector3(0,1,0);
-const smoother=k=>k*k*k*(k*(6*k-15)+10);
-const clampN=(v,a,b)=>Math.max(a,Math.min(b,v));
 function fly(p,t,dur,fov,done,brake){
-  const p1=new THREE.Vector3(...p),t1=new THREE.Vector3(...t),p0=camera.position.clone(),t0=controls.target.clone();
-  const s0=new THREE.Spherical().setFromVector3(p0.clone().sub(t0)),s1=new THREE.Spherical().setFromVector3(p1.clone().sub(t1));
-  let da=s1.theta-s0.theta;da=Math.atan2(Math.sin(da),Math.cos(da));            // the short way round
-  dur=dur||clampN(1.2+p0.distanceTo(p1)/95+Math.abs(da)/Math.PI*.9,1.4,3.2);
-  tween={kind:'orbit',k:0,dur,brake,s0,s1,da,t0,t1,f0:camera.fov,f1:fov||camera.fov,done};
+  tween={k:0,dur,brake,p0:camera.position.clone(),t0:controls.target.clone(),
+    p1:new THREE.Vector3(...p),t1:new THREE.Vector3(...t),
+    f0:camera.fov,f1:fov||camera.fov,done};
   controls.enabled=false;
 }
 function buildingView(b){
@@ -1894,62 +1876,35 @@ function buildingView(b){
   return {p:[b.pos[0]+d*.8,b.foot?b.floors*3.3*.9+7:14,b.pos[2]+d*1.7],
           t:[b.pos[0],b.floors*3.3*.4,b.pos[2]]};
 }
-/* quick fade: dip to dark, swap while hidden (building a room and compiling its shaders happen here), fade back */
-function fadeSwap(mid){
-  return new Promise(res=>{
-    const f=document.getElementById('fade'),still=matchMedia('(prefers-reduced-motion:reduce)').matches;
-    f.style.transitionDuration=still?'0s':'.18s';f.style.opacity='1';
-    setTimeout(async()=>{
-      try{await mid();}finally{
-        Q.ignoreUntil=performance.now()+2000;
-        f.style.transitionDuration=still?'0s':'.3s';f.style.opacity='0';setTimeout(res,still?0:300);}},still?0:190);});}
-let busy=false,paintQ=0;
-const schedulePaint=()=>{if(paintQ)return;paintQ=requestAnimationFrame(()=>{paintQ=0;paint();});};
-/* rooms are cached; phones keep only one built room at a time to stay within memory */
-const ROOMS={};
-function getRoom(type){
-  if(!ROOMS[type]){
-    if(LOW)Object.keys(ROOMS).forEach(k=>{if(ROOMS[k]!==room){disposeRoom(ROOMS[k]);delete ROOMS[k];}});
-    ROOMS[type]=buildRoom(type);}
-  return ROOMS[type];}
-async function compileScene(scene){
-  const rt=composer?composer.readBuffer:null;if(rt)renderer.setRenderTarget(rt);
-  try{await renderer.compileAsync(scene,camera);}catch(e){}
-  renderer.setRenderTarget(null);}
+function fade(mid){const f=document.getElementById('fade');
+  f.style.opacity='1';setTimeout(()=>{mid();f.style.opacity='0';},460);}
 
 function toResort(){
   mode='resort';curB=null;curRoom=null;active=resort;applyTone();
   if(renderPass) renderPass.scene=resort;
-  limits('free');fly(RESORT_CAM.p,RESORT_CAM.t,null,40,()=>limits('resort'));
-  schedulePaint();
+  limits('free');fly(RESORT_CAM.p,RESORT_CAM.t,1.6,40,()=>limits('resort'));
+  paint();
 }
 function enterBuilding(id){
   if(mode!=='resort') return;
   curB=BMAP[id];mode='building';
   const v=buildingView(curB);
-  limits('free');fly(v.p,v.t,null,40,()=>limits('building'));
-  schedulePaint();
+  limits('free');fly(v.p,v.t,1.5,40,()=>limits('building'));
+  paint();
 }
-async function enterRoom(no){
-  const r=curB.rooms.find(x=>x[0]===no); if(!r||busy) return;
-  busy=true;
-  await fadeSwap(async()=>{
+function enterRoom(no){
+  const r=curB.rooms.find(x=>x[0]===no); if(!r) return;
+  fade(()=>{
     curRoom={no:r[0],type:r[1]};
-    room=getRoom(r[1]);roomType=r[1];
-    mode='room';active=room;
+    if(roomType!==r[1]){ if(room) disposeRoom(room); room=buildRoom(r[1]); roomType=r[1]; }
+    mode='room';active=room;applyLight(todK);
     if(renderPass) renderPass.scene=room;
     limits('room');tween=null;controls.enabled=true;
-    applyLight(todK);
-    gotoView('Entry',true);
-    await compileScene(room);                 // shaders ready before the screen comes back
-    renderer.shadowMap.needsUpdate=true;
-    paint();
+    gotoView('Entry',true);paint();
   });
-  busy=false;
 }
-async function exitRoom(){
-  if(busy) return; busy=true;
-  await fadeSwap(()=>{
+function exitRoom(){
+  fade(()=>{
     mode='building';curRoom=null;active=resort;applyTone();
     if(renderPass) renderPass.scene=resort;
     const v=buildingView(curB);
@@ -1957,24 +1912,20 @@ async function exitRoom(){
     camera.fov=40;camera.updateProjectionMatrix();
     limits('building');tween=null;controls.enabled=true;
     controls.enableDamping=false;controls.update();controls.enableDamping=true;
-    renderer.shadowMap.needsUpdate=true;
     paint();
   });
-  busy=false;
 }
 function gotoView(name,instant){
   const v=ROOM_VIEWS[name],p=new THREE.Vector3(...v.p),look=new THREE.Vector3(...v.t);
-  const fwd=look.clone().sub(p).normalize(),t=p.clone().addScaledVector(fwd,.012);
+  const t=p.clone().addScaledVector(look.clone().sub(p).normalize(),.012);
   document.querySelectorAll('#views .chip').forEach(c=>
     c.setAttribute('aria-pressed',String(c.dataset.v===name)));
   if(instant||matchMedia('(prefers-reduced-motion:reduce)').matches){
     camera.position.copy(p);controls.target.copy(t);camera.fov=v.fov;
     camera.updateProjectionMatrix();controls.enableDamping=false;controls.update();
     controls.enableDamping=true;return;}
-  const q0=camera.quaternion.clone();
-  _mx.lookAt(p,look,_up3);const q1=new THREE.Quaternion().setFromRotationMatrix(_mx);
-  const p0=camera.position.clone();
-  tween={kind:'look',k:0,dur:clampN(.85+q0.angleTo(q1)*.5+p0.distanceTo(p)*.18,1,2),p0,p1:p,q0,q1,f0:camera.fov,f1:v.fov};
+  tween={k:0,dur:1.2,p0:camera.position.clone(),t0:controls.target.clone(),
+    p1:p,t1:t,f0:camera.fov,f1:v.fov,keep:true};
   controls.enabled=false;
 }
 
@@ -2017,7 +1968,7 @@ function paint(){
     ? Object.keys(ROOM_VIEWS).map(k=>`<button class="chip" data-v="${k}" aria-pressed="${k==='Entry'}">${k}</button>`).join('')
     : '';
   pc.innerHTML = mode==='resort'?resortPanel():mode==='building'?buildingPanel():roomPanel();
-  pc.scrollTop=0;pc.classList.remove('in');requestAnimationFrame(()=>pc.classList.add('in'));
+  pc.scrollTop=0;pc.classList.remove('in');void pc.offsetWidth;pc.classList.add('in');
   setHover(null);
 }
 function resortPanel(){
@@ -2137,86 +2088,25 @@ function resize(){
 new ResizeObserver(resize).observe(stage);
 const v3=new THREE.Vector3(), clock=new THREE.Clock();
 let shoreT=0;
-const _lE=new Float32Array(32);let _lMode='';
 function placeLabels(){
-  const e=camera.matrixWorld.elements,pe=camera.projectionMatrix.elements;
-  let same=_lMode===mode&&_lE[31]===VW+VH*7;
-  for(let i=0;i<16&&same;i++) if(_lE[i]!==e[i]||_lE[16+i]!==pe[i]) same=false;
-  if(same) return;
-  for(let i=0;i<16;i++){_lE[i]=e[i];_lE[16+i]=pe[i];}
-  _lE[31]=VW+VH*7;_lMode=mode;
   BUILDINGS.forEach(b=>{
     const el=b.el; if(!el) return;
-    let show=false;
-    if(mode==='resort'){
-      v3.set(b.pos[0],b.labelY,b.pos[2]).project(camera);
-      if(v3.z<=1){show=true;
-        el.style.setProperty('--x',((v3.x+1)/2*VW).toFixed(1)+'px');
-        el.style.setProperty('--y',((1-v3.y)/2*VH).toFixed(1)+'px');}}
-    if(b._shown!==show){b._shown=show;el.style.display=show?'block':'none';}
+    if(mode!=='resort'){el.style.display='none';return;}
+    v3.set(b.pos[0],b.labelY,b.pos[2]).project(camera);
+    if(v3.z>1){el.style.display='none';return;}
+    el.style.display='block';
+    el.style.left=((v3.x+1)/2*VW)+'px';
+    el.style.top=((1-v3.y)/2*VH)+'px';
   });
 }
-/* ── quality controller: lowers resolution first, then the glass blur, then bloom, whenever frames drop; raises it back cautiously ── */
-const Q={pr:1,min:.7,max:1.5,hist:[],lastAdj:0,lastDown:-1e9,raisedAt:-1e9,lite:false,noBloom:false,ignoreUntil:0};
-function setPR(pr){Q.pr=pr;renderer.setPixelRatio(pr);renderer.setSize(VW,VH);
-  if(composer){composer.setPixelRatio(pr);composer.setSize(VW,VH);}}
-function setLite(on){Q.lite=on;document.body.classList.toggle('lite',on);}
-function initQuality(){
-  const dpr=devicePixelRatio||1;
-  Q.max=Math.min(dpr,LOW?1.5:2);Q.min=LOW?.7:.8;
-  setPR(Math.min(dpr,LOW?1.25:1.5,Q.max));
-  if(LOW) setLite(true);}
-function qualityTick(ms,now){
-  if(ms>150||now<Q.ignoreUntil){Q.hist.length=0;return;}
-  Q.hist.push(ms);if(Q.hist.length>40)Q.hist.shift();
-  if(Q.hist.length<40||now-Q.lastAdj<1800) return;
-  const avg=Q.hist.reduce((a,b)=>a+b,0)/Q.hist.length,base=Math.min(...Q.hist);
-  if(avg>Math.max(19,base*1.35)){
-    if(now-Q.raisedAt<8000) Q.lastDown=now+30000;          // the last raise did not hold: leave it alone for a while
-    if(Q.pr>Q.min+.01) setPR(Math.max(Q.min,Q.pr*.88));
-    else if(!Q.lite) setLite(true);
-    else if(!Q.noBloom){Q.noBloom=true;if(bloomPass)bloomPass.enabled=false;}
-    Q.lastAdj=now;Q.lastDown=Math.max(Q.lastDown,now);Q.hist.length=0;
-  }else if(avg<base*1.1+1.5&&Q.pr<Q.max-.01&&now-Q.lastDown>15000&&now-Q.raisedAt>6000){
-    setPR(Math.min(Q.max,Q.pr*1.07));Q.raisedAt=now;Q.lastAdj=now;Q.hist.length=0;}
-}
-/* ?perf shows frame time, resolution scale, draw calls and lights */
-let hudEl=null,hudT=0,hudN=0,hudSum=0;
-if(location.search.includes('perf')){
-  hudEl=document.createElement('div');
-  hudEl.style.cssText='position:fixed;left:10px;bottom:10px;z-index:20;padding:8px 10px;background:rgba(0,0,0,.74);color:#9fe6b0;'+
-    'font:11px/1.45 ui-monospace,monospace;border-radius:8px;pointer-events:none;white-space:pre';
-  document.body.appendChild(hudEl);}
-function hudTick(ms,now){
-  if(!hudEl) return; hudN++;hudSum+=ms; if(now-hudT<500) return;
-  const avg=hudSum/hudN,i=renderer.info;
-  hudEl.textContent=`${(1000/avg).toFixed(0)} fps  ${avg.toFixed(1)} ms\npixel ratio ${Q.pr.toFixed(2)}  ${renderer.domElement.width}x${renderer.domElement.height}\n`+
-    `calls ${i.render.calls}  tris ${(i.render.triangles/1000).toFixed(0)}k  programs ${i.programs?i.programs.length:'?'}\n`+
-    `lamps ${NIGHT_LIGHTS.filter(l=>l.visible).length}  glass ${Q.lite?'lite':'blur'}  bloom ${bloomPass?bloomPass.enabled:'off'}`;
-  hudT=now;hudN=0;hudSum=0;}
-
-let lastFrame=performance.now();
 function loop(){
   requestAnimationFrame(loop);
-  const now=performance.now(),ms=now-lastFrame;lastFrame=now;
-  const raw=clock.getDelta(),dt=Math.min(raw,.05);
-  renderer.info.reset();
+  const dt=Math.min(clock.getDelta(),.05);
   if(tween){
-    tween.k=Math.min(1,tween.k+Math.min(raw,.1)/tween.dur);
-    const k=tween.k,e=tween.brake?1-Math.pow(1-k,3.4):smoother(k);
-    if(tween.kind==='orbit'){
-      controls.target.lerpVectors(tween.t0,tween.t1,e);
-      const a=Math.log(tween.s0.radius),b=Math.log(tween.s1.radius);
-      _sp.radius=Math.exp(a+(b-a)*e);
-      _sp.phi=tween.s0.phi+(tween.s1.phi-tween.s0.phi)*e;
-      _sp.theta=tween.s0.theta+tween.da*e;
-      camera.position.setFromSpherical(_sp).add(controls.target);
-    }else{
-      camera.position.lerpVectors(tween.p0,tween.p1,e);
-      _qm.slerpQuaternions(tween.q0,tween.q1,e);
-      _fw.set(0,0,-1).applyQuaternion(_qm);
-      controls.target.copy(camera.position).addScaledVector(_fw,.012);
-    }
+    tween.k+=dt/tween.dur;
+    const k=Math.min(tween.k,1), e=tween.brake?1-Math.pow(1-k,3.4):(k<.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2);
+    camera.position.lerpVectors(tween.p0,tween.p1,e);
+    controls.target.lerpVectors(tween.t0,tween.t1,e);
     camera.fov=tween.f0+(tween.f1-tween.f0)*e;camera.updateProjectionMatrix();
     if(k>=1){const d=tween.done;tween=null;controls.enabled=true;if(d)d();}
   }
@@ -2232,7 +2122,6 @@ function loop(){
   placeLabels();
   if(filmPass) filmPass.uniforms.time.value+=dt;
   if(composer) composer.render(); else renderer.render(active,camera);
-  qualityTick(ms,now);hudTick(ms,now);
 }
 
 /* ═══════════════ boot ═══════════════ */
@@ -2248,20 +2137,7 @@ function loop(){
     resort.environment=pmrem.fromScene(skyEnvScene(),.02).texture;
     buildComposer(resort);
     applyLight(todK);
-    initQuality();
-    await step('preparing the light',.93);
-    /* compile every shader variant now, behind the loading screen: lamps off, lamps on, and the first room */
-    {const k=todK;
-      applyLight(0);await compileScene(resort);
-      applyLight(1);
-      const hidden=[starField,moonMesh,...BUILDINGS.map(b=>b.ring)].filter(Boolean);
-      hidden.forEach(o=>o.visible=true);await compileScene(resort);
-      BUILDINGS.forEach(b=>{if(b.ring)b.ring.visible=false;});
-      applyLight(k);
-      if(!LOW){const rm=getRoom('deluxe');room=rm;roomType='deluxe';const was=active;active=rm;applyTone();applyLight(k);
-        await compileScene(rm);active=was;applyTone();}
-      renderer.shadowMap.needsUpdate=true;}
-    if(location.search.includes('dev')) window.__dbg={camera,controls,THREE,applyLight,enterBuilding,enterRoom,gotoView,renderer,ROOM_VIEWS,get tween(){return tween;},get room(){return room;}};
+    if(location.search.includes('dev')) window.__dbg={camera,controls,THREE,applyLight,enterBuilding,enterRoom,gotoView,get room(){return room;}};
     /* opening shot: the drone starts high and far back over the sea, swoops in fast, brakes onto the beach-side view,
        then the slow orbit takes over */
     const still=matchMedia('(prefers-reduced-motion:reduce)').matches||location.search.includes('nointro');
